@@ -4,8 +4,9 @@
  */
 
 var express = require('express');
-var routes = require('./routes');
-var spotify = require('./routes/spotify');
+var common = require('./common')();
+var spotify = require('./routes/spotify')(common);
+var controls = require('./routes/controls')(common);
 var http = require('http');
 var path = require('path');
 
@@ -45,11 +46,14 @@ app.get('/addtrack', spotify.addTrack);
 app.get('/pause', spotify.pause);
 app.get('/play', spotify.play);
 app.get('/skip', spotify.skip);
-app.get('/currtrack', spotify.currTrack);
-app.get('/playlists', spotify.playlists);
 app.get('/playlists', spotify.playlists);
 app.get('/playlist', spotify.playlist);
 app.get('/addplaylist', spotify.addPlaylist);
+app.get('/volumeup', controls.volumeUp);
+app.get('/volumedown', controls.volumeDown);
+// app.get('/mute', controls.mute);
+// app.get('/unmute', controls.unmute);
+app.get('/status', common.getStatus);
 
 http.createServer(app).listen(app.get('port'), function(){
   console.log('Express server listening on port ' + app.get('port'));
