@@ -20,11 +20,11 @@ module.exports = function () {
   };
 
   this.savePlaylist = function (name, playlist) {
-    fs.writeFileSync('../data/'+name+'.json', JSON.stringify(playlist));
+    fs.writeFileSync(__dirname + '/../data/'+name+'.json', JSON.stringify(playlist));
   };
 
   this.loadPlaylist = function (name, playlist) {
-    return JSON.parse(fs.readFileSync('../data/'+name+'.json', { encoding: 'utf8' }));
+    return JSON.parse(fs.readFileSync(__dirname + '/../data/'+name+'.json', { encoding: 'utf8' }));
   };
 
   this.sendWithStatus = function (res, data) {
