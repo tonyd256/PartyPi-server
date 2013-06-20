@@ -4,7 +4,7 @@
  */
 
 var express = require('express');
-var common = require('./common')();
+var common = require('./routes/common')();
 var spotify = require('./routes/spotify')(common);
 var controls = require('./routes/controls')(common);
 var http = require('http');
