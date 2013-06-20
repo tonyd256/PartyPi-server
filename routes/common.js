@@ -13,7 +13,7 @@ module.exports = function () {
       track: currentTrack,
       paused: isPaused
     };
-  }
+  };
 
   this.getStatus = function (req, res, next) {
     res.send({ status: this.status() });
