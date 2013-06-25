@@ -1,5 +1,23 @@
-extends layout
+doctype 5
+html(ng-app='app')
+  head
+    meta(charset='utf-8')
+    title PartyPi
+    meta(name='viewport', content='initial-scale=1, maximum-scale=1, user-scalable=no')
+    //- Makes your prototype chrome-less once bookmarked to your phone's home screen
+    meta(name='apple-mobile-web-app-capable', content='yes')
+    meta(name='apple-mobile-web-app-status-bar-style', content='black')
 
-block content
-  h1= title
-  p Welcome to #{title}
+    link(rel='stylesheet', href='/stylesheets/bootstrap.min.css')
+    //- link(rel='stylesheet', href='/stylesheets/bootstrap-responsive.min.css')
+    link(rel='stylesheet', href='/stylesheets/font-awesome.min.css')
+    link(rel='stylesheet', href='/stylesheets/ratchet.css')
+    link(rel='stylesheet', href='/stylesheets/style.css')
+    script(src='/javascripts/ratchet.js')
+    script(src='https://ajax.googleapis.com/ajax/libs/angularjs/1.0.7/angular.min.js')
+    script(src='https://ajax.googleapis.com/ajax/libs/angularjs/1.0.7/angular-resource.min.js')
+    script(src='/javascripts/controllers.js')
+    script(src='/javascripts/app.js')
+    script(src='/javascripts/services.js')
+  body
+    ng-view

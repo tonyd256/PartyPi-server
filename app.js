@@ -7,6 +7,7 @@ var express = require('express');
 var common = require('./routes/common')();
 var spotify = require('./routes/spotify')(common);
 var controls = require('./routes/controls')(common);
+var web = require('./routes/web');
 var http = require('http');
 var path = require('path');
 
@@ -20,9 +21,8 @@ app.use(express.favicon());
 app.use(express.logger('dev'));
 app.use(express.bodyParser());
 app.use(express.methodOverride());
-app.use(app.router);
-app.use(require('less-middleware')({ src: __dirname + '/public' }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(app.router);
 
 // development only
 if ('development' == app.get('env')) {
@@ -40,20 +40,29 @@ app.use( function (err, req, res, next) {
   }
 });
 
-//app.get('/', routes.index);
-app.get('/search', spotify.search);
-app.get('/addtrack', spotify.addTrack);
-app.get('/pause', spotify.pause);
-app.get('/play', spotify.play);
-app.get('/skip', spotify.skip);
-app.get('/playlists', spotify.playlists);
-app.get('/playlist', spotify.playlist);
-app.get('/addplaylist', spotify.addPlaylist);
-app.get('/volumeup', controls.volumeUp);
-app.get('/volumedown', controls.volumeDown);
-// app.get('/mute', controls.mute);
-// app.get('/unmute', controls.unmute);
-app.get('/status', common.getStatus);
+// views
+app.get('*.html', web.renderHTML);
+
+// api
+app.get('/api/search', spotify.search);
+app.get('/api/addtrack', spotify.addTrack);
+app.get('/api/track', spotify.track);
+app.get('/api/pause', spotify.pause);
+app.get('/api/play', spotify.play);
+app.get('/api/skip', spotify.skip);
+app.get('/api/playlists', spotify.playlists);
+app.get('/api/playlist', spotify.playlist);
+app.get('/api/addplaylist', spotify.addPlaylist);
+app.get('/api/volumeup', controls.volumeUp);
+app.get('/api/volumedown', controls.volumeDown);
+app.get('/api/volume', controls.setVolume);
+// app.get('/api/mute', controls.mute);
+// app.get('/api/unmute', controls.unmute);
+app.get('/api/status', common.getStatus);
+app.get('/api/currplaylist', spotify.currPlaylist);
+app.get('/api/clear', spotify.clear);
+
+app.get('*', web.index);
 
 http.createServer(app).listen(app.get('port'), function(){
   console.log('Express server listening on port ' + app.get('port'));

@@ -19,11 +19,11 @@ module.exports = function () {
     res.send({ status: this.status() });
   };
 
-  this.savePlaylist = function (name, playlist) {
-    fs.writeFileSync(__dirname + '/../data/'+name+'.json', JSON.stringify(playlist));
+  this.saveJSON = function (name, json) {
+    fs.writeFileSync(__dirname + '/../data/'+name+'.json', JSON.stringify(json));
   };
 
-  this.loadPlaylist = function (name, playlist) {
+  this.loadJSON = function (name) {
     return JSON.parse(fs.readFileSync(__dirname + '/../data/'+name+'.json', { encoding: 'utf8' }));
   };
 
