@@ -80,7 +80,6 @@ function PlaylistCtrl($scope, $location, Playlist, Track, AddPlaylist) {
 
 function CurrentPlaylistCtrl($scope, $location, CurrentPlaylist, Track, Clear) {
   $scope.playlist = CurrentPlaylist.get();
-  $scope.cantAdd = true;
   $scope.clearEnabled = true;
 
   $scope.viewTrack = function (track) {

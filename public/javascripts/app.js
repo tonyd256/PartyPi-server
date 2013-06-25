@@ -20,7 +20,7 @@ angular.module('app', ['Services']).
       }).
       when('/currplaylist', {
         controller: CurrentPlaylistCtrl,
-        templateUrl: 'playlist.html'
+        templateUrl: 'currplaylist.html'
       }).
       when('/track', {
         controller: TrackCtrl,
