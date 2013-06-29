@@ -5,6 +5,7 @@ var events = require('events');
 var speaker = require('speaker');
 var request = require('request');
 var async = require('async');
+var child = require('child_process');
 
 var mainPlaylist = [];
 var currPlaylist = [];
@@ -14,6 +15,10 @@ var common;
 var player;
 var playing = false;
 var cacheUnsaved = false;
+var currentVolume = 0;
+var currentTrack = null;
+var isPaused = false;
+var jukeboxEvent;
 
 var speaker = new speaker();
 var playlistEvent = new events.EventEmitter();
@@ -33,12 +38,12 @@ session.once('login', function (err) {
   userPlaylist = common.loadJSON('userlist');
   currPlaylist = common.loadJSON('currentlist');
 
-  common.isPaused = true;
+  isPaused = true;
   playNext(true);
 });
 
 playlistEvent.on('trackAdded', function () {
-  if (session.isClosed() || common.currentTrack) return;
+  if (session.isClosed() || currentTrack) return;
   playNext();
 });
 
@@ -60,15 +65,16 @@ function playNext(paused) {
   } else {
     // nothing to play so stop
     player.stop();
-    common.currentTrack = null;
+    currentTrack = null;
   }
+  jukeboxEvent.emit('songChange');
 }
 
 function loadTrack(meta, paused) {
   if (!meta.url.match(/spotify:track:\S+/i)) {
     console.log('uri is not a spotify track uri');
     player.stop();
-    common.currentTrack = null;
+    currentTrack = null;
     return;
   }
 
@@ -87,7 +93,7 @@ function loadTrack(meta, paused) {
 
   getAlbumArt(meta, function (err, images) {
     meta.images = images;
-    common.currentTrack = meta;
+    currentTrack = meta;
   });
 }
 
@@ -102,7 +108,7 @@ function getTrackMeta(track) {
 }
 
 function getAlbumArt(track, cb) {
-  if (imageCache[track.artist + '' + track.album]) return cb(null, imageCache[track.artist + '' + track.album]);
+  if (imageCache[track.artist + '-' + track.album]) return cb(null, imageCache[track.artist + '' + track.album]);
   var defaultImage = { extralarge: '/images/backup_image.png' };
 
   request('http://ws.audioscrobbler.com/2.0/?method=album.getinfo&api_key=' + creds.lastfmApiKey + '&artist=' + track.artist + '&album=' + track.album + '&format=json', function (err, resp, body) {
@@ -113,8 +119,7 @@ function getAlbumArt(track, cb) {
       for (var i in json.album.image) {
         images[json.album.image[i].size] = json.album.image[i]['#text'];
       }
-      imageCache[track.artist + '' + track.album] = images;
-      cacheUnsaved = true;
+      imageCache[track.artist + '-' + track.album] = images;
       return cb(null, images);
     }
 
@@ -126,8 +131,7 @@ function getAlbumArt(track, cb) {
         for (var i in json.album.image) {
           images[json.album.image[i].size] = json.album.image[i]['#text'];
         }
-        imageCache[track.artist + '' + track.album] = images;
-        cacheUnsaved = true;
+        imageCache[track.artist + '-' + track.album] = images;
         return cb(null, images);
       }
 
@@ -174,34 +178,35 @@ function isTrackInPlaylist(url, cb) {
     });
 }
 
-module.exports = function (commonLib) {
+module.exports = function (commonLib, jEvent) {
   common = commonLib;
+  jukeboxEvent = jEvent;
 
-  this.search = function (req, res, next) {
-    if (session.isClosed()) return next(new Error('Spotify session is closed'));
+  this.search = function (query, cb) {
+    if (session.isClosed()) return cb(new Error('Spotify session is closed'));
 
-    var search = new sp.Search(req.query.query);
+    var search = new sp.Search(query);
     search.execute();
     search.once('ready', function () {
       var tracks = [];
       for (var i in search.tracks)
         tracks.push(getTrackMeta(search.tracks[i]));
 
-      common.sendWithStatus(res, tracks);
+      cb(null, tracks);
     });
   };
 
-  this.addTrack = function (req, res, next) {
-    if (session.isClosed()) return next(new Error('Spotify session is closed'));
-    if (!req.query.url) return next(new Error('URL required'));
-    if (!req.query.url.match(/spotify:track:\S+/i)) return next(new Error('Not a valid Spotify track URL'));
+  this.addTrack = function (url, cb) {
+    if (session.isClosed()) return cb(new Error('Spotify session is closed'));
+    if (!url) return cb(new Error('URL required'));
+    if (!url.match(/spotify:track:\S+/i)) return cb(new Error('Not a valid Spotify track URL'));
 
     // check if already in playlist
-    isTrackInPlaylist(req.query.url, function (isIn) {
-      if (isIn) return common.sendWithStatus(res, null);
+    isTrackInPlaylist(url, function (isIn) {
+      if (isIn) return cb();
 
       // add track url to main and user playlist
-      var track = sp.Track.getFromUrl(req.query.url);
+      var track = sp.Track.getFromUrl(url);
       track.once('ready', function () {
         var meta = getTrackMeta(track);
         // TODO: if already in the list, move up in position only
@@ -210,18 +215,18 @@ module.exports = function (commonLib) {
         common.saveJSON('mainlist', mainPlaylist);
         common.saveJSON('userlist', userPlaylist);
 
-        common.sendWithStatus(res, null);
+        cb();
         playlistEvent.emit('trackAdded');
       });
     });
   };
 
-  this.track = function (req, res, next) {
-    if (session.isClosed()) return next(new Error('Spotify session is closed'));
-    if (!req.query.url) return next(new Error('URL required'));
-    if (!req.query.url.match(/spotify:track:\S+/i)) return next(new Error('Not a valid Spotify track URL'));
+  this.getTrack = function (url, cb) {
+    if (session.isClosed()) return cb(new Error('Spotify session is closed'));
+    if (!url) return cb(new Error('URL required'));
+    if (!url.match(/spotify:track:\S+/i)) return cb(new Error('Not a valid Spotify track URL'));
 
-    var track = sp.Track.getFromUrl(req.query.url);
+    var track = sp.Track.getFromUrl(url);
     track.once('ready', function () {
       var meta = getTrackMeta(track);
 
@@ -244,41 +249,41 @@ module.exports = function (commonLib) {
           });
         }], function (err) {
           if (err) return next(err);
-          common.sendWithStatus(res, meta);
+          cb(null, meta);
         });
     });
   };
 
-  this.pause = function (req, res, next) {
-    if (session.isClosed()) return next(new Error('Spotify session is closed'));
+  this.pause = function (cb) {
+    if (session.isClosed()) return cb(new Error('Spotify session is closed'));
     player.stop();
-    common.isPaused = true;
-    common.sendWithStatus(res, null);
+    isPaused = true;
+    cb();
   };
 
-  this.play = function (req, res, next) {
-    if (session.isClosed()) return next(new Error('Spotify session is closed'));
+  this.play = function (cb) {
+    if (session.isClosed()) return cb(new Error('Spotify session is closed'));
 
     // if nothing is playing but songs are in the playlist then play next song
-    if (!common.currentTrack && mainPlaylist.length > 0) {
+    if (!currentTrack && mainPlaylist.length > 0) {
       playNext();
-      return common.sendWithStatus(res, null);
+      return cb();
     }
 
     player.play();
-    common.isPaused = false;
-    common.sendWithStatus(res, null);
+    isPaused = false;
+    cb();
   };
 
-  this.skip = function (req, res, next) {
-    if (session.isClosed()) return next(new Error('Spotify session is closed'));
+  this.skip = function (cb) {
+    if (session.isClosed()) return cb(new Error('Spotify session is closed'));
     player.stop();
     playNext();
-    common.sendWithStatus(res, null);
+    cb();
   };
 
-  this.playlists = function (req, res, next) {
-    if (session.isClosed()) return next(new Error('Spotify session is closed'));
+  this.getPlaylists = function (cb) {
+    if (session.isClosed()) return cb(new Error('Spotify session is closed'));
     session.getPlaylistcontainer().getPlaylists(function (playlists) {
       var list = [];
       for (var i in playlists)
@@ -286,36 +291,36 @@ module.exports = function (commonLib) {
           name: playlists[i].name,
           url: playlists[i].getUrl()
         });
-      common.sendWithStatus(res, list);
+      cb(null, list);
     });
   };
 
-  this.playlist = function (req, res, next) {
-    if (session.isClosed()) return next(new Error('Spotify session is closed'));
-    if (!req.query.url) return next(new Error('URL required'));
-    if (!req.query.url.match(/spotify:user:\S+:playlist:\S+/i)) return next(new Error('Not a valid Spotify playlist URL'));
+  this.getPlaylist = function (url, cb) {
+    if (session.isClosed()) return cb(new Error('Spotify session is closed'));
+    if (!url) return cb(new Error('URL required'));
+    if (!url.match(/spotify:user:\S+:playlist:\S+/i)) return cb(new Error('Not a valid Spotify playlist URL'));
 
-    var playlist = sp.Playlist.getFromUrl(req.query.url);
+    var playlist = sp.Playlist.getFromUrl(url);
     playlist.getTracks( function (tracks) {
       var list = [];
       for (var i in tracks)
         list.push(getTrackMeta(tracks[i]));
 
-      common.sendWithStatus(res, {
+      cb(null, {
         name: playlist.name,
-        url: req.query.url,
+        url: url,
         tracks: list
       });
     });
   };
 
-  this.addPlaylist = function (req, res, next) {
-    if (session.isClosed()) return next(new Error('Spotify session is closed'));
-    if (!req.query.url) return next(new Error('URL required'));
-    if (!req.query.url.match(/spotify:user:\S+:playlist:\S+/i)) return next(new Error('Not a valid Spotify playlist URL'));
+  this.addPlaylist = function (url, cb) {
+    if (session.isClosed()) return cb(new Error('Spotify session is closed'));
+    if (!url) return cb(new Error('URL required'));
+    if (!url.match(/spotify:user:\S+:playlist:\S+/i)) return cb(new Error('Not a valid Spotify playlist URL'));
 
     // add all tracks in playlist to currPlaylist and mainPlaylist
-    var playlist = sp.Playlist.getFromUrl(req.query.url);
+    var playlist = sp.Playlist.getFromUrl(url);
     playlist.getTracks( function (tracks) {
       for (var i in tracks) {
         var meta = getTrackMeta(tracks[i]);
@@ -329,17 +334,17 @@ module.exports = function (commonLib) {
       common.saveJSON('mainlist', mainPlaylist);
       common.saveJSON('currentlist', currPlaylist);
 
-      common.sendWithStatus(res, null);
+      cb();
       playlistEvent.emit('trackAdded');
     });
   };
 
-  this.currPlaylist = function (req, res, next) {
-    if (session.isClosed()) return next(new Error('Spotify session is closed'));
-    common.sendWithStatus(res, { tracks: userPlaylist.concat(currPlaylist) });
+  this.getCurrentPlaylist = function (cb) {
+    if (session.isClosed()) return cb(new Error('Spotify session is closed'));
+    cb(null, { tracks: userPlaylist.concat(currPlaylist) });
   };
 
-  this.clear = function (req, res, next) {
+  this.clearCurrentPlaylist = function (cb) {
     mainPlaylist = [];
     currPlaylist = [];
     userPlaylist = [];
@@ -347,8 +352,32 @@ module.exports = function (commonLib) {
     common.saveJSON('mainlist', mainPlaylist);
     common.saveJSON('userlist', userPlaylist);
     common.saveJSON('currentlist', currPlaylist);
-    common.sendWithStatus(res, null);
+    cb();
   };
+
+  this.getStatus = function (cb) {
+    cb(null, {
+      volume: currentVolume,
+      track: currentTrack,
+      paused: isPaused
+    });
+  };
+
+  this.setVolume = function (vol, cb) {
+    if (vol < 0 || vol > 100) return;
+
+    child.exec("sudo amixer set PCM -- "+vol+"%", function (err, stdout, stderr) {
+      if (err) return next(err);
+      if (stderr) return next(new Error(stderr));
+      currentVolume = vol;
+      cb();
+    });
+  };
+
+  if (!currentVolume)
+    child.exec("amixer get PCM|grep -o [0-9]*%|sed 's/%//'", function (err, stdout, stderr) {
+      currentVolume = parseInt(stdout, 10);
+    });
 
   return this;
 };

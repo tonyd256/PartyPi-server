@@ -3,67 +3,75 @@
  * Module dependencies.
  */
 
-var express = require('express');
-var common = require('./routes/common')();
-var spotify = require('./routes/spotify')(common);
-var controls = require('./routes/controls')(common);
-var web = require('./routes/web');
-var http = require('http');
-var path = require('path');
+var events = require('events');
+var dgram = require('dgram');
+var os = require('os');
 
-var app = express();
+var socket = dgram.createSocket('udp4');
 
-// all environments
-app.set('port', process.env.PORT || 3000);
-app.set('views', __dirname + '/views');
-app.set('view engine', 'jade');
-app.use(express.favicon());
-app.use(express.logger('dev'));
-app.use(express.bodyParser());
-app.use(express.methodOverride());
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(app.router);
+var jukeboxEvent = new events.EventEmitter();
+var creds = require('./creds.js');
+var common = require('./routes/common');
+var spotify = require('./routes/spotify')(common, jukeboxEvent);
 
-// development only
-if ('development' == app.get('env')) {
-  app.use(express.errorHandler());
-}
+socket.on('message', function (msg, rinfo) {
+  console.log("socket got: " + msg + " from " + rinfo.address + ":" + rinfo.port);
 
-// error handler
-app.use( function (err, req, res, next) {
-  if (err instanceof Error) {
-    console.log(err);
-    res.send(500, { error: err.message });
-  } else {
-    console.log(err);
-    res.send(500, { error: 'Unknown Error occured' });
+  var json = JSON.parse(msg);
+  if (json && json.cmd) {
+    if (json.cmd == 'reportSelf')
+      sendData(json.cmd, { name: creds.name, ip: myIP }, rinfo.address);
+
+    var fn = spotify[json.cmd];
+    if (json.param)
+      return fn(json.param, function (err, data) {
+        if (err) return console.log(err);
+        sendData(json.cmd, data, rinfo.address);
+      });
+
+    fn(function (data) {
+      sendData(json.cmd, data, rinfo.address);
+    });
   }
 });
 
-// views
-app.get('*.html', web.renderHTML);
+function sendData(cmd, data, ip) {
+  var msg = new Buffer(JSON.stringify({
+    response: cmd,
+    data: data
+  }));
 
-// api
-app.get('/api/search', spotify.search);
-app.get('/api/addtrack', spotify.addTrack);
-app.get('/api/track', spotify.track);
-app.get('/api/pause', spotify.pause);
-app.get('/api/play', spotify.play);
-app.get('/api/skip', spotify.skip);
-app.get('/api/playlists', spotify.playlists);
-app.get('/api/playlist', spotify.playlist);
-app.get('/api/addplaylist', spotify.addPlaylist);
-app.get('/api/volumeup', controls.volumeUp);
-app.get('/api/volumedown', controls.volumeDown);
-app.get('/api/volume', controls.setVolume);
-// app.get('/api/mute', controls.mute);
-// app.get('/api/unmute', controls.unmute);
-app.get('/api/status', common.getStatus);
-app.get('/api/currplaylist', spotify.currPlaylist);
-app.get('/api/clear', spotify.clear);
+  socket.send(msg, 0, msg.length, 27071, ip, function (err) {
+    if (err) console.log(err);
+  });
+}
 
-app.get('*', web.index);
-
-http.createServer(app).listen(app.get('port'), function(){
-  console.log('Express server listening on port ' + app.get('port'));
+jukeboxEvent.on('songChange', function () {
+  spotify.getStatus( function (err, data) {
+    sendData('getStatus', data, '255.255.255.255');
+  });
 });
+
+var myIP;
+var ifaces = os.networkInterfaces();
+for (var dev in ifaces) {
+  var iface;
+  if (ifaces['eth0']) iface = ifaces['eth0'];
+  if (ifaces['en0']) iface = ifaces['en0'];
+  if (ifaces['e0']) iface = ifaces['e0'];
+
+  if (!iface) process.exit();
+  iface.forEach( function (details){
+    if (details.family == 'IPv4') {
+      myIP = details.address;
+    }
+  });
+}
+
+socket.on('listening', function () {
+  var address = socket.address();
+  console.log('UDP Client listening on ' + address.address + ":" + address.port);
+  socket.setBroadcast(true);
+});
+
+socket.bind(27072);

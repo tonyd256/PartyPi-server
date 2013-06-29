@@ -30,21 +30,5 @@ module.exports = function (common) {
     });
   };
 
-  this.setVolume = function (req, res, next) {
-    if (req.query.vol < 0 || req.query.vol > 100) return;
-
-    child.exec("sudo amixer set PCM -- "+req.query.vol+"%", function (err, stdout, stderr) {
-      if (err) return next(err);
-      if (stderr) return next(new Error(stderr));
-      common.currentVolume = req.query.vol;
-      res.send();
-    });
-  };
-
-  if (!common.currentVolume)
-    child.exec("amixer get PCM|grep -o [0-9]*%|sed 's/%//'", function (err, stdout, stderr) {
-      common.currentVolume = parseInt(stdout, 10);
-    });
-
   return this;
 };
