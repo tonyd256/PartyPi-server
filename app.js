@@ -40,7 +40,7 @@ function sendData(cmd, data, ip) {
     data: data
   }));
 
-  socket.send(msg, 0, msg.length, 27071, ip, function (err) {
+  socket.send(msg, 0, msg.length, 27072, ip, function (err) {
     if (err) console.log(err);
     console.log('Sent msg ' + msg + ' to ' + ip);
   });
