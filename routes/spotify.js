@@ -67,7 +67,7 @@ function playNext(paused) {
     player.stop();
     currentTrack = null;
   }
-  jukeboxEvent.emit('songChange');
+  jukeboxEvent.emit('statusChange');
 }
 
 function loadTrack(meta, paused) {
@@ -259,6 +259,7 @@ module.exports = function (commonLib, jEvent) {
     player.stop();
     isPaused = true;
     cb();
+    jukeboxEvent.emit('statusChange');
   };
 
   this.play = function (cb) {
@@ -273,6 +274,7 @@ module.exports = function (commonLib, jEvent) {
     player.play();
     isPaused = false;
     cb();
+    jukeboxEvent.emit('statusChange');
   };
 
   this.skip = function (cb) {

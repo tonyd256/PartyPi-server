@@ -1,8 +1,4 @@
 
-/**
- * Module dependencies.
- */
-
 var events = require('events');
 var dgram = require('dgram');
 var os = require('os');
@@ -23,6 +19,8 @@ socket.on('message', function (msg, rinfo) {
       sendData(json.cmd, { name: creds.name, ip: myIP }, rinfo.address);
 
     var fn = spotify[json.cmd];
+    if (!fn) return console.log("Error: no function " + json.cmd);
+
     if (json.param)
       return fn(json.param, function (err, data) {
         if (err) return console.log(err);
@@ -46,7 +44,7 @@ function sendData(cmd, data, ip) {
   });
 }
 
-jukeboxEvent.on('songChange', function () {
+jukeboxEvent.on('statusChange', function () {
   spotify.getStatus( function (err, data) {
     sendData('getStatus', data, '255.255.255.255');
   });
