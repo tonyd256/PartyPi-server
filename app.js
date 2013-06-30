@@ -27,7 +27,8 @@ socket.on('message', function (msg, rinfo) {
         sendData(json.cmd, data, rinfo.address);
       });
 
-    fn(function (data) {
+    fn(function (err, data) {
+      if (err) return console.log(err);
       sendData(json.cmd, data, rinfo.address);
     });
   }
