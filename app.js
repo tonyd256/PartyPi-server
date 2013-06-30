@@ -16,7 +16,7 @@ socket.on('message', function (msg, rinfo) {
   var json = JSON.parse(msg);
   if (json && json.cmd) {
     if (json.cmd == 'reportSelf')
-      sendData(json.cmd, { name: creds.name, ip: myIP }, rinfo.address);
+      return sendData(json.cmd, { name: creds.name, ip: myIP }, rinfo.address);
 
     var fn = spotify[json.cmd];
     if (!fn) return console.log("Error: no function " + json.cmd);
@@ -42,6 +42,7 @@ function sendData(cmd, data, ip) {
 
   socket.send(msg, 0, msg.length, 27071, ip, function (err) {
     if (err) console.log(err);
+    console.log('Sent msg ' + msg + ' to ' + ip);
   });
 }
 
