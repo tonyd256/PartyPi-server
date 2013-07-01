@@ -19,6 +19,7 @@ var currentVolume = 0;
 var currentTrack = null;
 var isPaused = false;
 var jukeboxEvent;
+var dislikes = 0;
 
 var speaker = new speaker();
 var playlistEvent = new events.EventEmitter();
@@ -343,7 +344,7 @@ module.exports = function (commonLib, jEvent) {
 
   this.getCurrentPlaylist = function (cb) {
     if (session.isClosed()) return cb(new Error('Spotify session is closed'));
-    cb(null, { tracks: userPlaylist.concat(currPlaylist) });
+    cb(null, userPlaylist.concat(currPlaylist));
   };
 
   this.clearCurrentPlaylist = function (cb) {
@@ -365,14 +366,24 @@ module.exports = function (commonLib, jEvent) {
     });
   };
 
+  this.getStatus = function (cb) {
+    if (++dislikes >= 5) {
+      dislikes = 0;
+      this.skip(cb);
+    }
+  };
+
   this.setVolume = function (vol, cb) {
-    if (vol < 0 || vol > 100) return;
+    if (vol < 0 || vol > 100 || this.changingVolume) return;
+    this.changingVolume = true;
 
     child.exec("sudo amixer set PCM -- "+vol+"%", function (err, stdout, stderr) {
       if (err) return next(err);
       if (stderr) return next(new Error(stderr));
       currentVolume = vol;
       cb();
+      this.changingVolume = false;
+      jukeboxEvent.emit('statusChange');
     });
   };
 
