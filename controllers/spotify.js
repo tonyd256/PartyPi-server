@@ -73,9 +73,8 @@ function playNext(paused) {
 
 function loadTrack(meta, paused) {
   if (!meta.url.match(/spotify:track:\S+/i)) {
-    console.log('uri is not a spotify track uri');
-    player.stop();
-    currentTrack = null;
+    console.log('uri: '+meta.url+' is not a spotify track uri');
+    playNext();
     return;
   }
 
