@@ -7,8 +7,8 @@ var socket = dgram.createSocket('udp4');
 
 var jukeboxEvent = new events.EventEmitter();
 var creds = require('./creds.js');
-var common = require('./routes/common');
-var spotify = require('./routes/spotify')(common, jukeboxEvent);
+var common = require('./controllers/common');
+var spotify = require('./controllers/spotify')(common, jukeboxEvent);
 
 socket.on('message', function (msg, rinfo) {
   console.log("socket got: " + msg + " from " + rinfo.address + ":" + rinfo.port);
