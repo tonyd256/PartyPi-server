@@ -366,7 +366,7 @@ module.exports = function (commonLib, jEvent) {
     });
   };
 
-  this.getStatus = function (cb) {
+  this.dislike = function (cb) {
     if (++dislikes >= 5) {
       dislikes = 0;
       this.skip(cb);
