@@ -1,2 +1,4 @@
 creds.js
 node_modules/*
+data/*
+*.key

@@ -9,6 +9,7 @@
     "libspotify": "git://github.com/tonyd256/node-libspotify.git#libspotify-12.1.103",
     "speaker": "~0.0.10",
     "request": "~2.21.0",
-    "async": "~0.2.9"
+    "async": "~0.2.9",
+    "nstore": "~0.5.2"
   }
 }
