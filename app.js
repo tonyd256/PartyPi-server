@@ -2,7 +2,6 @@
 var events = require('events');
 var dgram = require('dgram');
 var os = require('os');
-var nStore = require('nstore');
 
 var socket = dgram.createSocket('udp4');
 
@@ -17,7 +16,11 @@ socket.on('message', function (msg, rinfo) {
   var json = JSON.parse(msg);
   if (json && json.cmd) {
     if (json.cmd == 'reportSelf')
-      return sendData(json.cmd, { name: creds.name, ip: myIP }, rinfo.address);
+      return sendData(json.cmd, {
+        name: creds.name,
+        ip: myIP,
+        pin: creds.adminPIN;
+      }, rinfo.address);
 
     var fn = spotify[json.cmd];
     if (!fn) return console.log("Error: no function " + json.cmd);

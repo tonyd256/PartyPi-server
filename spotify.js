@@ -428,10 +428,6 @@ module.exports = function (jEvent) {
     }
   };
 
-  this.verifyPIN = function (pin, cb) {
-    cb(null, pin == creds.adminPIN);
-  };
-
   this.setVolume = function (vol, cb) {
     if (vol < 0 || vol > 100 || this.changingVolume) return;
     this.changingVolume = true;
