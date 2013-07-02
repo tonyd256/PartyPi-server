@@ -19,7 +19,7 @@ socket.on('message', function (msg, rinfo) {
       return sendData(json.cmd, {
         name: creds.name,
         ip: myIP,
-        pin: creds.adminPIN;
+        pin: creds.adminPIN
       }, rinfo.address);
 
     var fn = spotify[json.cmd];
